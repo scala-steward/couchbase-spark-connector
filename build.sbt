@@ -52,7 +52,7 @@ lazy val commonSettings = Seq(
   assemblyExcludedJars in assembly := {
     val classPath = (fullClasspath in assembly).value
     classPath.filter {
-      e => !List("core-io-1.7.16.jar", "java-client-2.7.16.jar").contains(e.data.getName)
+      e => !List("core-io-1.7.18.jar", "java-client-2.7.18.jar").contains(e.data.getName)
     }
   },
   assemblyMergeStrategy in assembly := {

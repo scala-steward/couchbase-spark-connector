@@ -26,11 +26,13 @@ import com.couchbase.spark.Logging
 class CouchbaseConnection extends Serializable with Logging {
 
   Runtime.getRuntime.addShutdownHook(new Thread {
+
     override def run(): Unit = {
       Thread.currentThread().setName("couchbase-shutdown-in-progress")
       CouchbaseConnection().stop()
       Thread.currentThread().setName("couchbase-shutdown-complete")
     }
+
   })
 
   @transient var envRef: Option[CouchbaseEnvironment] = None
@@ -39,9 +41,10 @@ class CouchbaseConnection extends Serializable with Logging {
 
   @transient var buckets = new ConcurrentHashMap[String, Bucket]()
 
-  @transient var streamClients = new ConcurrentHashMap[String, Client]()
+  @transient var streamClients =
+    new ConcurrentHashMap[(String, Option[String], Option[String]), Client]()
 
-  def cluster(cfg: CouchbaseConfig): Cluster = {
+  def cluster(cfg: CouchbaseConfig): Cluster =
     this.synchronized {
       if (envRef.isEmpty) {
         val builder = DefaultCouchbaseEnvironment.builder()
@@ -87,7 +90,7 @@ class CouchbaseConnection extends Serializable with Logging {
         envRef = Option(builder.build())
       }
       if (clusterRef.isEmpty) {
-        clusterRef = Option(CouchbaseCluster.create(envRef.get, cfg.hosts:_*))
+        clusterRef = Option(CouchbaseCluster.create(envRef.get, cfg.hosts: _*))
 
         if (cfg.credential.isDefined) {
           val c = cfg.credential.get
@@ -96,19 +99,19 @@ class CouchbaseConnection extends Serializable with Logging {
       }
       clusterRef.get
     }
-  }
 
   def bucket(cfg: CouchbaseConfig, bucketName: String = null): Bucket = {
-    val bname = if (bucketName == null) {
-      if (cfg.buckets.size != 1) {
-        throw new IllegalStateException("The bucket name can only be inferred if there is "
-          + "exactly 1 bucket set on the config")
+    val bname =
+      if (bucketName == null) {
+        if (cfg.buckets.size != 1) {
+          throw new IllegalStateException("The bucket name can only be inferred if there is "
+            + "exactly 1 bucket set on the config")
+        } else {
+          cfg.buckets.head.name
+        }
       } else {
-        cfg.buckets.head.name
+        bucketName
       }
-    } else {
-      bucketName
-    }
     this.synchronized {
       var bucket = buckets.get(bname)
       if (bucket != null) {
@@ -130,43 +133,60 @@ class CouchbaseConnection extends Serializable with Logging {
     }
   }
 
-  def streamClient(cfg: CouchbaseConfig, bucketName: String = null): Client = {
-    val bname = if (bucketName == null) {
-      if (cfg.buckets.size != 1) {
-        throw new IllegalStateException("The bucket name can only be inferred if there is "
-          + "exactly 1 bucket set on the config")
+  def streamClient(
+    cfg: CouchbaseConfig,
+    bucketName: String = null,
+    scopeName: Option[String],
+    collectionName: Option[String]
+  ): Client = {
+    val clientSignature = (bucketName, scopeName, collectionName)
+    val inferedBucketName =
+      if (bucketName == null) {
+        if (cfg.buckets.size != 1) {
+          throw new IllegalStateException("The bucket name can only be inferred if there is "
+            + "exactly 1 bucket set on the config")
+        } else {
+          cfg.buckets.head.name
+        }
       } else {
-        cfg.buckets.head.name
+        bucketName
       }
-    } else {
-      bucketName
-    }
     this.synchronized {
-      var streamClient = streamClients.get(bname)
+      var streamClient = streamClients.get(clientSignature)
       if (streamClient != null) {
         return streamClient
       }
 
-      val foundBucketConfig = cfg.buckets.filter(_.name == bname)
+      val foundBucketConfig = cfg.buckets.filter(_.name == inferedBucketName)
       if (foundBucketConfig.isEmpty) {
-        throw new IllegalStateException("Not able to find bucket password for bucket " + bname)
+        throw new IllegalStateException(
+          "Not able to find bucket password for bucket " + inferedBucketName
+        )
       }
 
-      var conf = Client.configure()
+      var conf = Client.builder()
         .bufferAckWatermark(80) // at 80% of the watermark, acknowledge
         .controlParam(DcpControl.Names.CONNECTION_BUFFER_SIZE, 1024 * 1000 * 50) // 50MB
-        .hostnames(cfg.hosts:_*)
-        .bucket(bname)
+        .seedNodes(cfg.hosts: _*)
+        .bucket(inferedBucketName)
         .password(foundBucketConfig.head.password)
 
-      if (cfg.credential.isDefined) {
-        conf = conf
-          .username(cfg.credential.get.username)
-          .password(cfg.credential.get.password)
+      cfg.credential.foreach {
+        credential => conf = conf.credentials(credential.username, credential.password)
       }
+      collectionName match {
+        case Some(collectionName) =>
+          assume(scopeName.isDefined)
+          conf = conf.collectionNames(scopeName + "." + collectionName)
+        case None =>
+          scopeName.foreach {
+            scopeName => conf = conf.scopeName(scopeName)
+          }
+      }
+
       streamClient = conf.build()
 
-      streamClients.put(bname, streamClient)
+      streamClients.put(clientSignature, streamClient)
       streamClient
     }
   }

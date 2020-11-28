@@ -19,14 +19,16 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.ReceiverInputDStream
 
-class SparkStreamingFunctions(@transient val ssc: StreamingContext) extends Serializable  {
+class SparkStreamingFunctions(@transient val ssc: StreamingContext) extends Serializable {
 
-  def couchbaseStream(bucket: String = null,
+  def couchbaseStream(
+    bucketName: Option[String] = None,
+    scopeName: Option[String] = None,
+    collectionName: Option[String] = None,
     storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK_SER_2,
     from: StreamFrom = FromNow,
-    to: StreamTo = ToInfinity):
-    ReceiverInputDStream[StreamMessage] = {
-    new CouchbaseInputDStream(ssc, storageLevel, bucket, from, to)
-  }
+    to: StreamTo = ToInfinity
+  ): ReceiverInputDStream[StreamMessage] =
+    new CouchbaseInputDStream(ssc, storageLevel, bucketName, scopeName, collectionName, from, to)
 
 }

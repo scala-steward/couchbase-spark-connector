@@ -16,16 +16,15 @@
 package com.couchbase.spark.streaming
 
 import com.couchbase.client.dcp._
+import com.couchbase.client.dcp.deps.io.netty.buffer.ByteBuf
 import com.couchbase.client.dcp.message._
 import com.couchbase.client.dcp.transport.netty.ChannelFlowController
-import com.couchbase.client.dcp.deps.io.netty.buffer.ByteBuf
 import com.couchbase.spark.Logging
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.ReceiverInputDStream
 import org.apache.spark.streaming.receiver.Receiver
-import rx.{CompletableSubscriber, Subscription}
 
 abstract class StreamMessage
 
@@ -54,22 +53,33 @@ case class Deletion(
 class CouchbaseInputDStream(
   _ssc: StreamingContext,
   storageLevel: StorageLevel,
-  bucket: String = null,
+  bucketName: Option[String],
+  scopeName: Option[String],
+  collectionName: Option[String],
   from: StreamFrom = FromNow,
   to: StreamTo = ToInfinity)
  extends ReceiverInputDStream[StreamMessage](_ssc) {
 
-  private val cbConfig = CouchbaseConfig(_ssc.sparkContext.getConf)
-  private val bucketName = Option(bucket).getOrElse(cbConfig.buckets.head.name)
-
-  override def getReceiver(): Receiver[StreamMessage] =
-    new CouchbaseReceiver(cbConfig, bucketName, storageLevel, from, to)
+  override def getReceiver(): Receiver[StreamMessage] = {
+    val couchbaseConfiguration = CouchbaseConfig(_ssc.sparkContext.getConf)
+    new CouchbaseReceiver(
+      couchbaseConfiguration,
+      bucketName.getOrElse(couchbaseConfiguration.buckets.head.name),
+      scopeName,
+      collectionName,
+      storageLevel,
+      from,
+      to
+    )
+  }
 
 }
 
 class CouchbaseReceiver(
   config: CouchbaseConfig,
   bucketName: String,
+  scopeName: Option[String],
+  collectionName: Option[String],
   storageLevel: StorageLevel,
   from: StreamFrom,
   to: StreamTo)
@@ -77,7 +87,8 @@ class CouchbaseReceiver(
    with Logging {
 
   override def onStart(): Unit = {
-    val client = CouchbaseConnection().streamClient(config, bucketName)
+    val client = CouchbaseConnection()
+      .streamClient(config, bucketName, scopeName, collectionName)
 
     // Attach Callbacks
     client.controlEventHandler(new ControlEventHandler {
@@ -85,17 +96,6 @@ class CouchbaseReceiver(
         if (RollbackMessage.is(event)) {
           val partition = RollbackMessage.vbucket(event)
           client.rollbackAndRestartStream(partition, RollbackMessage.seqno(event))
-            .subscribe(new CompletableSubscriber {
-              override def onCompleted(): Unit = {
-                logTrace("DCP Rollback completed")
-              }
-
-              override def onError(e: Throwable): Unit = {
-                logWarning("Error during DCP Rollback!", e)
-              }
-
-              override def onSubscribe(d: Subscription): Unit = {}
-            })
         } else if (DcpSnapshotMarkerRequest.is(event)) {
           flowController.ack(event)
         } else {
@@ -151,27 +151,27 @@ class CouchbaseReceiver(
     })
 
     // Connect to the nodes
-    client.connect().await()
+    client.connect().block()
 
     // Initialize the state as desired
     if (from == FromNow && to == ToInfinity) {
-      client.initializeState(StreamFrom.NOW, StreamTo.INFINITY).await()
+      client.initializeState(StreamFrom.NOW, StreamTo.INFINITY).block()
     } else if (from == FromBeginning && to == ToInfinity) {
-      client.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).await()
+      client.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).block()
     } else if (from == FromBeginning && to == ToNow) {
-      client.initializeState(StreamFrom.BEGINNING, StreamTo.NOW).await()
+      client.initializeState(StreamFrom.BEGINNING, StreamTo.NOW).block()
     } else {
       throw new IllegalArgumentException("Unsupported From/To Combination!")
     }
 
     // Start streaming for partitions
-    client.startStreaming().await()
+    client.startStreaming().block()
   }
 
   override def onStop(): Unit = {
-    val client = CouchbaseConnection().streamClient(config, bucketName)
-    client.stopStreaming().await()
-    client.disconnect().await()
+    val client = CouchbaseConnection().streamClient(config, bucketName, scopeName, collectionName)
+    client.stopStreaming().block()
+    client.disconnect().block()
   }
 
 }

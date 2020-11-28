@@ -8,13 +8,13 @@ You can link against this library (for Spark 3.0) in your program at the followi
 ```
 groupId: com.couchbase.client
 artifactId: spark-connector_2.12
-version: 3.0.4
+version: 3.0.8
 ```
 
 If you are using SBT:
 
 ```
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "3.0.4"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "3.0.8"
 ```
 
 ## Documentation
@@ -22,7 +22,7 @@ The official documentation, including a quickstart guide, can be found [here](ht
 
 ## Version Compatibility
 
-Each minor release is targeted for a specific spark version and once released
+Each minor release targets for a specific spark version and once released
 branched away. Couchbase maintains bugfix releases for the branches where
 appropriate, please see [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Ccom.couchbase.client.spark)
 or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-connector) for releases to download.
@@ -46,8 +46,7 @@ Running the tests has the following requirements:
 2. The admin account must have username "Administrator" and password "password".
 3. travel-sample example bucket must be installed (available in Admin UI: Settings -> Sample Buckets).
 4. Query and data services must be running.
-5. A primary index must exist on travel-sample ("CREATE PRIMARY INDEX on `travel-sample`;").
-6. A bucket named "default" must exist with flushing enabled.
+5. A bucket named "default" must exist with flushing enabled.
 
 ## License
 Copyright 2015-2020 Couchbase Inc.

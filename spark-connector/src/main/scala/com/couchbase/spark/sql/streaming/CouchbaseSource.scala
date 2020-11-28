@@ -54,7 +54,7 @@ class CouchbaseSource(
   val flowControllers = new ConcurrentHashMap[Short, ChannelFlowController](1024)
   val currentOffset = new AtomicReference[Offset]()
   val config = CouchbaseConfig(sqlContext.sparkContext.getConf)
-  val client: Client = CouchbaseConnection().streamClient(config)
+  val client: Client = CouchbaseConnection().streamClient(config, null, None, None)
   val usedSchema: StructType = userSchema.getOrElse(CouchbaseSource.DEFAULT_SCHEMA)
 
   private val idFieldName = parameters.getOrElse("idField", DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
@@ -126,7 +126,7 @@ class CouchbaseSource(
         }
       })
 
-      client.connect().await()
+      client.connect().block()
 
       (0 until client.numPartitions).foreach {
         p => queues.put(p.toShort, new ConcurrentLinkedQueue[StreamMessage]())
@@ -145,9 +145,9 @@ class CouchbaseSource(
       }
 
       logInfo(s"Starting Couchbase Structured Stream from $from to $to")
-      client.initializeState(from, to).await()
+      client.initializeState(from, to).block()
       currentOffset.set(statesToOffsets)
-      client.startStreaming().await()
+      client.startStreaming().block()
 
       Observable
         .interval(2.seconds)
@@ -253,7 +253,7 @@ class CouchbaseSource(
   }
 
   override def stop(): Unit = {
-    client.disconnect().await()
+    client.disconnect().block()
   }
 
 }
