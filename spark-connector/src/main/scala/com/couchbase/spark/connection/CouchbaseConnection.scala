@@ -177,7 +177,9 @@ class CouchbaseConnection extends Serializable with Logging {
       collectionName match {
         case Some(collectionName) =>
           assume(scopeName.isDefined)
-          conf = conf.collectionNames(scopeName + "." + collectionName)
+          conf = conf
+            .collectionNames(scopeName.get + "." + collectionName)
+            .collectionsAware(true)
         case None =>
           scopeName.foreach {
             scopeName => conf = conf.scopeName(scopeName)
