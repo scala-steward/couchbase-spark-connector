@@ -113,8 +113,10 @@ class CouchbaseReceiver(
           if (DcpMutationMessage.is(event)) {
             val data = new Array[Byte](DcpMutationMessage.content(event).readableBytes())
             DcpMutationMessage.content(event).readBytes(data)
-            val key = new Array[Byte](DcpMutationMessage.key(event).readableBytes())
-            DcpMutationMessage.key(event).readBytes(key)
+
+            val key =
+              MessageUtil.getCollectionIdAndKey(event, collectionName.nonEmpty).key().getBytes()
+
             Mutation(
               key,
               data,
@@ -128,8 +130,8 @@ class CouchbaseReceiver(
               event.readableBytes()
             )
           } else if (DcpDeletionMessage.is(event)) {
-            val key = new Array[Byte](DcpDeletionMessage.key(event).readableBytes())
-            DcpDeletionMessage.key(event).readBytes(key)
+            val key =
+              MessageUtil.getCollectionIdAndKey(event, collectionName.nonEmpty).key().getBytes()
             Deletion(
               key,
               DcpDeletionMessage.cas(event),
