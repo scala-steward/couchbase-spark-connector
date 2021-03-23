@@ -8,7 +8,7 @@ makePomConfiguration := makePomConfiguration.value.withConfigurations(
 )
 conflictManager := ConflictManager.default
 
-lazy val sparkVersion = "3.0.1"
+lazy val sparkVersion = "3.0.2"
 lazy val scalaLanguageVersion = "2.12.12"
 
 Project.inConfig(Test)(baseAssemblySettings)
@@ -40,7 +40,7 @@ lazy val commonSettings = Seq(
   assemblyShadeRules in assembly := Seq(
     ShadeRule
       .rename("com.couchbase.client.java.**" -> "shaded.com.couchbase.client.java.@1")
-      .inLibrary("com.couchbase.client" % "java-client" % "2.7.18")
+      .inLibrary("com.couchbase.client" % "java-client" % "2.7.19")
       .inProject,
     ShadeRule
       .rename("com.couchbase.client.core.**" -> "shaded.com.couchbase.client.core.@1")
@@ -52,7 +52,7 @@ lazy val commonSettings = Seq(
   assemblyExcludedJars in assembly := {
     val classPath = (fullClasspath in assembly).value
     classPath.filter {
-      e => !List("core-io-1.7.18.jar", "java-client-2.7.18.jar").contains(e.data.getName)
+      e => !List("core-io-1.7.19.jar", "java-client-2.7.19.jar").contains(e.data.getName)
     }
   },
   assemblyMergeStrategy in assembly := {
@@ -74,8 +74,8 @@ lazy val commonSettings = Seq(
   addArtifact(artifact in (Compile, assembly), assembly),
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-library" % scalaLanguageVersion,
-    "com.couchbase.client" % "java-client" % "2.7.18",
-    "com.couchbase.client" % "dcp-client" % "0.31.0",
+    "com.couchbase.client" % "java-client" % "2.7.19",
+    "com.couchbase.client" % "dcp-client" % "0.33.0",
     "io.reactivex" %% "rxscala" % "0.27.0",
     "org.apache.logging.log4j" % "log4j-api" % "2.14.0",
     "org.scalatestplus" %% "junit-4-13" % "3.2.3.0" % "test",
