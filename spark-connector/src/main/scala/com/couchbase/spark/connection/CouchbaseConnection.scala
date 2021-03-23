@@ -169,7 +169,6 @@ class CouchbaseConnection extends Serializable with Logging {
         .controlParam(DcpControl.Names.CONNECTION_BUFFER_SIZE, 1024 * 1000 * 50) // 50MB
         .seedNodes(cfg.hosts: _*)
         .bucket(inferedBucketName)
-        .password(foundBucketConfig.head.password)
 
       cfg.credential.foreach {
         credential => conf = conf.credentials(credential.username, credential.password)

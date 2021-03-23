@@ -188,32 +188,35 @@ object N1QLRelation {
    */
   def filterToExpression(filter: Filter): String = {
     filter match {
-      case EqualTo(attr, value) => s" ${attrToFilter(attr)} = " + valueToFilter(value)
-      case GreaterThan(attr, value) => s" ${attrToFilter(attr)} > " + valueToFilter(value)
-      case GreaterThanOrEqual(attr, value) => s" ${attrToFilter(attr)} >= " + valueToFilter(value)
-      case LessThan(attr, value) => s" ${attrToFilter(attr)} < " + valueToFilter(value)
-      case LessThanOrEqual(attr, value) => s" ${attrToFilter(attr)} <= " + valueToFilter(value)
-      case IsNull(attr) => s" ${attrToFilter(attr)} IS NULL"
-      case IsNotNull(attr) => s" ${attrToFilter(attr)} IS NOT NULL"
-      case StringContains(attr, value) => s" CONTAINS(${attrToFilter(attr)}, '$value')"
-      case StringStartsWith(attr, value) =>
-        s" ${attrToFilter(attr)} LIKE '" + escapeForLike(value) + "%'"
-      case StringEndsWith(attr, value) =>
-        s" ${attrToFilter(attr)} LIKE '%" + escapeForLike(value) + "'"
-      case In(attr, values) =>
-        val encoded = values.map(valueToFilter).mkString(",")
-        s" `$attr` IN [$encoded]"
+      case AlwaysFalse() => " FALSE"
+      case AlwaysTrue() => " TRUE"
       case And(left, right) =>
         val l = filterToExpression(left)
         val r = filterToExpression(right)
         s" ($l AND $r)"
+      case EqualNullSafe(attr, value) => s" (NOT (${attrToFilter(attr)} != "+valueToFilter(value)+s" OR ${attrToFilter(attr)} IS NULL OR "+valueToFilter(value)+s" IS NULL) OR (${attrToFilter(attr)} IS NULL AND " + valueToFilter(value) + " IS NULL))"
+      case EqualTo(attr, value) => s" ${attrToFilter(attr)} = " + valueToFilter(value)
+      case GreaterThan(attr, value) => s" ${attrToFilter(attr)} > " + valueToFilter(value)
+      case GreaterThanOrEqual(attr, value) => s" ${attrToFilter(attr)} >= " + valueToFilter(value)
+      case In(attr, values) =>
+        val encoded = values.map(valueToFilter).mkString(",")
+        s" `$attr` IN [$encoded]"
+      case IsNotNull(attr) => s" ${attrToFilter(attr)} IS NOT NULL"
+      case IsNull(attr) => s" ${attrToFilter(attr)} IS NULL"
+      case LessThan(attr, value) => s" ${attrToFilter(attr)} < " + valueToFilter(value)
+      case LessThanOrEqual(attr, value) => s" ${attrToFilter(attr)} <= " + valueToFilter(value)
+      case Not(f) =>
+        val v = filterToExpression(f)
+        s" NOT ($v)"
       case Or(left, right) =>
         val l = filterToExpression(left)
         val r = filterToExpression(right)
         s" ($l OR $r)"
-      case Not(f) =>
-        val v = filterToExpression(f)
-        s" NOT ($v)"
+      case StringContains(attr, value) => s" CONTAINS(${attrToFilter(attr)}, '$value')"
+      case StringEndsWith(attr, value) =>
+        s" ${attrToFilter(attr)} LIKE '%" + escapeForLike(value) + "'"
+      case StringStartsWith(attr, value) =>
+        s" ${attrToFilter(attr)} LIKE '" + escapeForLike(value) + "%'"
     }
   }
 
