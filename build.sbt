@@ -40,7 +40,7 @@ lazy val commonSettings = Seq(
   assemblyShadeRules in assembly := Seq(
     ShadeRule
       .rename("com.couchbase.client.java.**" -> "shaded.com.couchbase.client.java.@1")
-      .inLibrary("com.couchbase.client" % "java-client" % "2.7.19")
+      .inLibrary("com.couchbase.client" % "java-client" % "2.7.20")
       .inProject,
     ShadeRule
       .rename("com.couchbase.client.core.**" -> "shaded.com.couchbase.client.core.@1")
@@ -74,7 +74,7 @@ lazy val commonSettings = Seq(
   addArtifact(artifact in (Compile, assembly), assembly),
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-library" % scalaLanguageVersion,
-    "com.couchbase.client" % "java-client" % "2.7.19",
+    "com.couchbase.client" % "java-client" % "2.7.20",
     "com.couchbase.client" % "dcp-client" % "0.33.0",
     "io.reactivex" %% "rxscala" % "0.27.0",
     "org.apache.logging.log4j" % "log4j-api" % "2.14.0",
