@@ -9,7 +9,7 @@ makePomConfiguration := makePomConfiguration.value.withConfigurations(
 conflictManager := ConflictManager.default
 
 lazy val sparkVersion = "3.0.2"
-lazy val scalaLanguageVersion = "2.12.12"
+lazy val scalaLanguageVersion = "2.12.14"
 
 Project.inConfig(Test)(baseAssemblySettings)
 
